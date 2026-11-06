@@ -7,6 +7,7 @@ venv/
 
 # Script default output (regenerate with fetch_12306_train_prefix.py)
 train_prefix_data.json
+train_prefix_data.csv
 *.log
 
 # OS / editor

@@ -1,12 +1,12 @@
 # 12306 新旧列车车次号对应关系
 
-> 基于 Python 提取中国铁路 12306 当前发布的新旧列车车次号对应关系，提供 Excel 与 JSON 数据、来源元数据、SHA-256 完整性校验及可复现抓取脚本。
+> 基于 Python 提取中国铁路 12306 当前发布的新旧列车车次号对应关系，提供 Excel、JSON 与 CSV 数据、来源元数据、SHA-256 完整性校验及可复现抓取脚本。
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)
 ![Records: 1640](https://img.shields.io/badge/Records-1640-brightgreen.svg)
 
-**English** · A reproducible Python extractor for China Railway 12306 old/new train number mappings, with Excel and JSON exports, provenance metadata, and SHA-256 verification.
+**English** · A reproducible Python extractor for China Railway 12306 old/new train number mappings, with Excel, JSON and CSV exports, provenance metadata, and SHA-256 verification.
 
 ---
 
@@ -31,6 +31,7 @@
 ├── fetch_12306_train_prefix.py          # 可复现抓取脚本（仅标准库，无第三方依赖）
 └── data
     ├── 12306_train_number_mapping.json  # 完整数据 + 来源元数据 + 校验值
+    ├── 12306_train_number_mapping.csv   # 纯数据表格（UTF-8 无 BOM）
     └── 12306_train_number_mapping.xlsx  # 便于人工查看的表格版本
 ```
 
@@ -73,6 +74,24 @@
 - **`车次对应关系`**：1,640 行数据，列为 `序号`、`旧车次`、`始发站`、`终到站`、`新车次`。
 - **`来源与校验`**：来源链接、抓取时间、记录数、重复与空值检查结果、页面示例核验结果、SHA-256 校验值。
 
+### CSV
+
+`data/12306_train_number_mapping.csv` 为纯数据表，方便直接导入数据库、Pandas、R 或 BI 工具：
+
+- 编码 **UTF-8（无 BOM）**，换行符 `LF`，逗号分隔，仅含必要引号转义；
+- 首行为表头 `old_train,origin,destination,new_train`，与 JSON 字段名一致；
+- 共 1,640 行数据，**行序与 JSON 完全一致**，不含序号列，也不含元数据。
+
+```csv
+old_train,origin,destination,new_train
+K3,北京,二连,V3
+K4,二连,北京,V4
+```
+
+用脚本导出时加上 `--csv` 即可生成同样格式的文件；CSV 与 JSON 由同一次抓取、同一份行数组写出，内容一一对应。
+
+> 用 Excel 直接打开 CSV 时若中文显示乱码，请用「数据 → 从文本/CSV」并选择 UTF-8 导入，或改用上面的 `.xlsx` 文件。
+
 ### 数据分布
 
 | 维度 | 分布 |
@@ -96,6 +115,9 @@ python3 fetch_12306_train_prefix.py
 
 # 或指定输出路径
 python3 fetch_12306_train_prefix.py --output data/train_prefix_data.json
+
+# 加上 --csv 同时导出一份 CSV（行序与 JSON 一致）
+python3 fetch_12306_train_prefix.py --output data/train_prefix_data.json --csv data/train_prefix_data.csv
 ```
 
 重新抓取会生成新的 `retrieved_at` 与 `source_script_sha256`。若页面结构或数据格式发生变化，脚本会**显式报错**，而不是静默输出空数据或不完整结果。
@@ -105,6 +127,7 @@ python3 fetch_12306_train_prefix.py --output data/train_prefix_data.json
 | 对象 | SHA-256 |
 | --- | --- |
 | `data/12306_train_number_mapping.json`（文件） | `70c31f84e77b01ce8efbc2ef3a302fb91c9988ab8f7969bd1f6e11c73f493f1b` |
+| `data/12306_train_number_mapping.csv`（文件） | `f39c224f7d46ebd460cfa48c0d7b45da41863f128b26b89c7e06b764bc954050` |
 | `data/12306_train_number_mapping.xlsx`（文件） | `641e3f19b6674a2a878962396c7e6e60c1069830be5030b79a1316bdb577707b` |
 | 原始对应关系数组（规范化 JSON） | `5ef8d7779ac842b13f554f2d70cb212958ec9802822a7684ef0f00a3af19014a` |
 | 来源业务脚本 `trainPrefix.cc6215b.js` | `f2664b6ea160d0dc786cd99e38b48b0ee54f6f3edbde2fc421780b1048bea3e3` |
@@ -126,7 +149,7 @@ Get-FileHash data\12306_train_number_mapping.json -Algorithm SHA256
 1. 请求公告页面，从 HTML 中解析出唯一的 `trainPrefix*.js` 业务脚本地址（排除 `common` 公共脚本）。
 2. 下载脚本，静态定位 `X.exports = [[...]]` 形式的数组，用 `json.JSONDecoder.raw_decode` 直接解析，不执行页面 JavaScript。
 3. 逐行校验：必须为四元素字符串数组，首尾字段匹配车次号规则 `[A-Z]{0,2}\d{1,5}`；存在多个候选时取记录数最多者，若等长候选内容冲突则报错要求人工确认。
-4. 保留页面原始行序，写入 JSON 时附上来源元数据与两级 SHA-256。
+4. 保留页面原始行序，写入 JSON 时附上来源元数据与两级 SHA-256；指定 `--csv` 时用同一份行数组额外写出 CSV。
 
 整个过程只读取公开页面与公开脚本，不使用浏览器自动化，不触发任何查询接口。
 
@@ -150,13 +173,18 @@ A reproducible extractor for China Railway 12306 old/new train number mappings.
 **What's included**
 
 - `data/12306_train_number_mapping.json` — 1,640 records with provenance metadata and SHA-256 checksums.
+- `data/12306_train_number_mapping.csv` — plain UTF-8 (no BOM) table of the same 1,640 rows, same order as the JSON.
 - `data/12306_train_number_mapping.xlsx` — same dataset as a readable workbook with a dedicated provenance sheet.
 - `fetch_12306_train_prefix.py` — a standard-library-only Python script that re-derives the dataset from the public page and its public business script.
 
 **Usage**
 
 ```bash
+# JSON only (default)
 python3 fetch_12306_train_prefix.py --output train_prefix_data.json
+
+# JSON plus a CSV export
+python3 fetch_12306_train_prefix.py --output train_prefix_data.json --csv train_prefix_data.csv
 ```
 
 **How it works** — the page ships the full mapping table inside a front-end bundle, so the script parses the public JavaScript array statically (no browser automation, no query API calls), validates every row, preserves source order, and records both the script hash and the mapping hash.

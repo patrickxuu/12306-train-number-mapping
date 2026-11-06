@@ -7,14 +7,17 @@
 使用方法：
     python3 fetch_12306_train_prefix.py
     python3 fetch_12306_train_prefix.py --output train_prefix_data.json
+    python3 fetch_12306_train_prefix.py --output data.json --csv data.csv
 
-输出为 UTF-8 JSON，包含来源元数据、校验信息和完整记录。
+输出为 UTF-8 JSON，包含来源元数据、校验信息和完整记录；
+加上 --csv 时会同时导出一份纯数据 CSV（UTF-8 无 BOM，行序与 JSON 一致）。
 仅使用 Python 标准库，无需安装第三方依赖。
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import re
@@ -173,6 +176,18 @@ def build_result(
     }
 
 
+CSV_HEADER = ("old_train", "origin", "destination", "new_train")
+
+
+def write_csv(rows: list[list[str]], path: Path) -> None:
+    """导出纯数据 CSV：UTF-8 无 BOM，LF 换行，行序与 JSON 完全一致。"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle, lineterminator="\n")
+        writer.writerow(CSV_HEADER)
+        writer.writerows(rows)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--page-url", default=PAGE_URL, help="12306 公告页面地址")
@@ -181,6 +196,12 @@ def main() -> None:
         type=Path,
         default=Path("train_prefix_data.json"),
         help="JSON 输出路径（默认：当前目录 train_prefix_data.json）",
+    )
+    parser.add_argument(
+        "--csv",
+        type=Path,
+        default=None,
+        help="可选：同时导出的 CSV 路径，如 data/train_prefix_data.csv",
     )
     args = parser.parse_args()
 
@@ -197,6 +218,10 @@ def main() -> None:
     print(f"提取完成：{len(rows)} 条")
     print(f"业务脚本：{script_url}")
     print(f"输出文件：{args.output.resolve()}")
+
+    if args.csv is not None:
+        write_csv(rows, args.csv)
+        print(f"CSV 文件：{args.csv.resolve()}")
 
 
 if __name__ == "__main__":

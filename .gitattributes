@@ -1,0 +1,8 @@
+# Keep line endings identical on every platform so the published SHA-256
+# checksums for the data files stay valid after a fresh clone.
+* text=auto eol=lf
+
+# Binary artefacts: never convert or diff as text.
+*.xlsx binary
+*.png binary
+*.jpg binary
